@@ -13,3 +13,7 @@ export interface Coordenada{
     x:number;
     y:number;
 }
+
+export interface SerpienteCoordenada{
+    snake: Coordenada[];
+}
