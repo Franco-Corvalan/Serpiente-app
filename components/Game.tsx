@@ -1,16 +1,19 @@
 import * as React from 'react';
-import { SafeAreaView, View, StyleSheet } from 'react-native';
+import { SafeAreaView, View, StyleSheet, Text } from 'react-native';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import { Colors } from '../styles/colores';
 import { Coordenada, Direction, GestureEventType } from '../types/types';
-// import Header from './Header';
+import Header from './Header';
 import Serpiente from './Serpiente';
 import { check } from '../utils/checkLimits';
+import Comida from './Comidas';
+import { checkComer } from '../utils/chackComer';
+import { randomFood } from '../utils/comidaRandom';
 
 const SnakeInicio = [{ x: 5, y: 5 }];
 const FoodInicio = { x: 5, y: 20 };
-const Gamelimites = { xMin: 0, xMax: 38, yMin: 0, yMax: 75 };
-const MoveIntervaloTiempo = 50;
+const Gamelimites = { xMin: 0, xMax: 38, yMin: 0, yMax: 67 };
+const MoveIntervaloTiempo = 40;
 const ScoreContador = 10;
 
 export default function Game(): JSX.Element {
@@ -18,23 +21,25 @@ export default function Game(): JSX.Element {
     const [snake, setSnake] = React.useState<Coordenada[]>(SnakeInicio);
     const [food, setFood] = React.useState<Coordenada>(FoodInicio);
     const [isGameOver, setIsGameOver] = React.useState<boolean>(false);
+    const [isPause, setIsPause] = React.useState<boolean>(false);
+    const [score, setScore] = React.useState<number>(0);
 
     React.useEffect(() => {
         if (!isGameOver) {
-            const intervaloID = setInterval(()=>{
-                moveSnake();
-            },MoveIntervaloTiempo)
-            return ()=> clearInterval(intervaloID);
+            const intervaloID = setInterval(() => {
+                !isPause && moveSnake();
+            }, MoveIntervaloTiempo)
+            return () => clearInterval(intervaloID);
         }
-    }, [isGameOver,snake]);
+    }, [isGameOver, snake, isPause]);
 
     const moveSnake = () => {
         const snakeCabeza = snake[0];
         const newCabeza = { ...snakeCabeza }; // crea una copia para modificar
-       
+
         //limites del juego (game over)
-        if(check(snakeCabeza,Gamelimites)){
-            setIsGameOver((prev)=> !prev);
+        if (check(snakeCabeza, Gamelimites)) {
+            setIsGameOver((prev) => !prev);
             return;
         }
 
@@ -59,9 +64,16 @@ export default function Game(): JSX.Element {
             default:
                 break;
         }
-       
+
         // check si se comio la comida
-        setSnake([newCabeza,...snake.slice(0,-1)]); //mover serpiente
+        if (checkComer(newCabeza, food, 2)) {
+            setFood(randomFood(Gamelimites.xMax, Gamelimites.yMax));
+            setSnake([newCabeza, ...snake]);
+            setScore(score + ScoreContador);
+        } else {
+            setSnake([newCabeza, ...snake.slice(0, -1)]); //mover serpiente
+        }
+
     };
 
     const handlerGesture = (event: GestureEventType) => {
@@ -85,14 +97,29 @@ export default function Game(): JSX.Element {
         }
     };
 
+    const reloadGame = () => {
+        setSnake(SnakeInicio);
+        setFood(FoodInicio);
+        setIsGameOver(false);
+        setScore(0);
+        setDirection(Direction.Right);
+        setIsPause(false);
+    };
+
+    const pauseGame = () => {
+        setIsPause(!isPause);
+    }
+
     return (
         <PanGestureHandler onGestureEvent={handlerGesture}>
             <SafeAreaView style={styles.container}>
-                {/* <Header>
-                </Header> */}
+                <Header resetGame={reloadGame} pauseGame={pauseGame} isPaused={isPause}>
+                    <Text style={{fontSize:22,fontWeight:"bold",color:Colors.primary}}>{score}</Text>
+                </Header>
                 <View style={styles.boundaries}>
                     {/* <View style={styles.snake} /> */}
                     <Serpiente snake={snake}></Serpiente>
+                    <Comida x={food.x} y={food.y}></Comida>
                 </View>
             </SafeAreaView>
         </PanGestureHandler>
@@ -108,7 +135,7 @@ const styles = StyleSheet.create({
     boundaries: {
         flex: 1,
         borderWidth: 15,
-        borderTopWidth: 50,
+        borderTopWidth: 25,
         borderBottomLeftRadius: 40,
         borderBottomRightRadius: 40,
         borderColor: Colors.primary,
